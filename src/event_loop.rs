@@ -17,6 +17,7 @@ use std::sync::Arc;
 #[cfg(not(web_platform))]
 use std::time::{Duration, Instant};
 
+use rwh_06::HasDisplayHandle;
 #[cfg(web_platform)]
 use web_time::{Duration, Instant};
 
@@ -431,10 +432,16 @@ impl rwh_06::HasDisplayHandle for dyn ActiveEventLoop + '_ {
 ///
 /// - A zero-sized type that is likely optimized out.
 /// - A reference-counted pointer to the underlying type.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct OwnedDisplayHandle {
     #[cfg_attr(not(feature = "rwh_06"), allow(dead_code))]
-    pub(crate) platform: platform_impl::OwnedDisplayHandle,
+    pub(crate) handle: Arc<dyn HasDisplayHandle>,
+}
+
+impl OwnedDisplayHandle {
+    pub(crate) fn new(handle: Arc<dyn HasDisplayHandle>) -> Self {
+        Self { handle }
+    }
 }
 
 impl fmt::Debug for OwnedDisplayHandle {
@@ -448,12 +455,7 @@ impl fmt::Debug for OwnedDisplayHandle {
 impl rwh_06::HasDisplayHandle for OwnedDisplayHandle {
     #[inline]
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
-        let raw = self.platform.raw_display_handle_rwh_06()?;
-
-        // SAFETY: The underlying display handle should be safe.
-        let handle = unsafe { rwh_06::DisplayHandle::borrow_raw(raw) };
-
-        Ok(handle)
+        self.handle.display_handle()
     }
 }
 
